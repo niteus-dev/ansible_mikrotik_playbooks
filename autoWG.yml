@@ -1,0 +1,38 @@
+- name: Configure WireGuard on MikroTik routers
+  hosts: mikrotiktest
+  become: yes
+
+  vars:
+    private_key: "{{ lookup('pipe', 'wg genkey') }}"
+    public_key_end: "{{ lookup('pipe', 'echo ' + private_key + ' | wg pubkey') }}"
+    public_key: "Insade this area your publik key"
+    peer_ip: "Your mikrotik ip"
+    peer_port: "Your mikrotik WG port"
+  
+  tasks:
+  - name: Generate private key
+    set_fact:
+      private_key: "{{ lookup('pipe', 'wg genkey') }}"
+      
+  - name: Add WireGuard interface to MikroTik router
+    community.routeros.command:
+      commands:
+        - '/interface wireguard add name=Sofit_wg private-key="{{ private_key }}" listen-port={{ peer_port }}'
+        - '/ip address add address={{ ansible_host }}/32 interface=Sofit_wg'
+      
+  - name: Add peer device to MikroTik router
+    community.routeros.command:
+      commands:
+        - '/interface wireguard peers add interface=Sofit_wg public-key="{{ public_key }}" allowed-address=172.22.0.1 endpoint-address={{ peer_ip }} endpoint-port={{ peer_port }}'
+      
+  - name: Save public key to file
+    lineinfile:
+      line: "Public_key={{ public_key_end }} private_key={{ private_key }} ID={{ inventory_hostname }} IP={{ ansible_host }}"
+      path: /home/User_directory/wg_all_keys.txt
+      create: yes
+
+  - name: Save all keys
+    lineinfile:
+      line: "/interface/wireguard/peers/add interface=Complex_uz allowed-address={{ ansible_host }}/32 public-key=\"{{ public_key_end }}\""
+      path:  /home/User_directory/for_main_mikrotik.txt
+      create: yes
